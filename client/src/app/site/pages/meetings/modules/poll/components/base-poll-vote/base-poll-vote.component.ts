@@ -107,7 +107,7 @@ export abstract class BasePollVoteComponent<C extends PollContentObject = any> e
     public voteActions: VoteOption[] = [];
 
     public get showAvailableVotes(): boolean {
-        return !this.poll.isListPoll && this.poll.max_votes_amount > 1;
+        return (!this.poll.isListPoll && this.poll.max_votes_amount > 1) || this.splitVotingEnabled;
     }
 
     /**
@@ -157,6 +157,8 @@ export abstract class BasePollVoteComponent<C extends PollContentObject = any> e
     private votedSubscription: Subscription;
     private votedSubscriptionPollId: Id;
 
+    protected splitVotingEnabled: boolean = true;
+
     public constructor(private meetingSettingsService: MeetingSettingsService) {
         super();
         this.updatePollOptionTitleWidth();
@@ -179,6 +181,16 @@ export abstract class BasePollVoteComponent<C extends PollContentObject = any> e
                     this.setupHasVotedSubscription();
                     this._isReady = true;
                     this.cd.markForCheck();
+
+                    if (this.splitVotingEnabled) {
+                        console.log("poll setup")
+                        console.log(this.showAvailableVotes)
+                        console.log(this.settings.hideLeftoverVotes)
+                        this.poll.max_votes_per_option *= user.voteWeight;
+                        this.poll.max_votes_amount *= user.voteWeight;
+                        this.poll.min_votes_amount *= user.voteWeight;
+                        this.settings.hideLeftoverVotes = false;
+                    }
                 }
             }),
             this.translate.onLangChange.subscribe(() => {

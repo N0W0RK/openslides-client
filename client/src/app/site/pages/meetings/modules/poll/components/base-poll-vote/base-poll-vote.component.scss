@@ -43,7 +43,7 @@
         }
     }
 
-    .vote-button-area {
+    .vote-element-area {
         display: inline-grid;
         justify-content: center;
     }
@@ -90,6 +90,11 @@
     }
 }
 
+.yn-multi-grid {
+    @extend .yn-grid;
+    grid-template-columns: auto 120px 120px;
+}
+
 .yna-grid {
     @extend %vote-grid-base;
     grid-template-areas: 'name yes no abstain';
@@ -100,6 +105,11 @@
     @media (max-width: 700px) {
         grid-template-areas: 'name name name name' '. yes no abstain';
     }
+}
+
+.yna-multi-grid {
+    @extend .yna-grid;
+    grid-template-columns: auto 120px 120px 120px;
 }
 
 .yna-grid-extended {
@@ -120,6 +130,13 @@
     }
 }
 
+.remove-multi-grid-gap {
+    @extend .remove-grid-gap;
+    @media (max-width: 700px) {
+        grid-template-columns: 120px 120px 120px;
+    }
+}
+
 .single-vote-grid {
     @extend %vote-grid-base;
     grid-template-areas: 'name yes';
@@ -130,12 +147,8 @@
 }
 
 .single-multi-vote-grid {
-    @extend %vote-grid-base;
-    grid-template-areas: 'name yes';
+    @extend .single-vote-grid;
     grid-template-columns: auto 120px;
-    @media (max-width: 700px) {
-        grid-template-areas: 'name name' '. yes';
-    }
 }
 
 .yna-split-grid {

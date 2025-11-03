@@ -42,7 +42,9 @@
                         <!-- Leftover votes -->
                         @if (showAvailableVotes && !settings.hideLeftoverVotes) {
                             <div class="option-list-information-grid">
-                                <b>{{ poll.option_ids.length }} {{ optionPluralLabel | translate }}</b>
+                                @if (!this.poll.isListPoll && poll.option_ids) {
+                                    <b>{{ poll.option_ids.length }} {{ optionPluralLabel | translate }}</b>
+                                }
                                 <div></div>
                                 <b class="text-right">
                                     {{ 'Available votes' | translate }}:
@@ -75,16 +77,40 @@
                                         (poll.isMethodYNA ||
                                             (settings.isSplitSingleOption &&
                                                 displayed_in_autopilot &&
-                                                poll.isMethodYNA)),
+                                                poll.isMethodYNA)) &&
+                                        poll.max_votes_per_option <= 1,
+                                    'yna-multi-grid':
+                                        ((poll.isListPoll && !isMobile) || !poll.isListPoll) &&
+                                        (poll.isMethodYNA ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYNA)) &&
+                                        poll.max_votes_per_option > 1,
                                     'yna-grid-extended':
                                         poll.isMethodYNA &&
                                         isMobile &&
                                         !settings.isSplitSingleOption &&
                                         poll.isListPoll,
-                                    'remove-grid-gap': settings.isSplitSingleOption && displayed_in_autopilot,
+                                    'remove-grid-gap':
+                                        settings.isSplitSingleOption &&
+                                        displayed_in_autopilot &&
+                                        (!poll.max_votes_per_option || poll.max_votes_per_option <= 1),
+                                    'remove-multi-grid-gap':
+                                        settings.isSplitSingleOption &&
+                                        displayed_in_autopilot &&
+                                        poll.max_votes_per_option > 1,
                                     'yn-grid':
-                                        poll.isMethodYN ||
-                                        (settings.isSplitSingleOption && displayed_in_autopilot && poll.isMethodYN),
+                                        (poll.isMethodYN ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYN)) &&
+                                        poll.max_votes_per_option <= 1,
+                                    'yn-multi-grid':
+                                        (poll.isMethodYN ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYN)) &&
+                                        poll.max_votes_per_option > 1,
                                     'single-vote-grid':
                                         (poll.isMethodY || poll.isMethodN) && poll.max_votes_per_option <= 1,
                                     'single-multi-vote-grid':
@@ -134,33 +160,52 @@
                             @if (!settings.hideGlobalOptions) {
                                 @for (option of globalVoteActions; track option.vote) {
                                     @if (option.vote === 'Y') {
-                                        <div class="single-vote-grid">
+                                        <div
+                                            [ngClass]="{
+                                                'single-vote-grid': poll.max_votes_per_option <= 1,
+                                                'single-multi-vote-grid': poll.max_votes_per_option > 1
+                                            }"
+                                        >
                                             <div class="vote-option-title">
                                                 <span>
                                                     {{ getGlobalOptionName(option) | translate }}
                                                 </span>
                                             </div>
-                                            <div class="vote-button-area">
-                                                <button
-                                                    class="vote-button"
-                                                    mat-raised-button
-                                                    [disabled]="isDeliveringVote(delegation)"
-                                                    (click)="saveGlobalVote(option.vote, delegation)"
-                                                >
-                                                    <div
-                                                        class="vote-button-content"
-                                                        [ngClass]="getGlobalButtonContentClass(option, delegation)"
+                                            <div class="vote-element-area">
+                                                @if (!poll.max_votes_per_option || poll.max_votes_per_option <= 1) {
+                                                    <button
+                                                        class="vote-button"
+                                                        mat-raised-button
+                                                        [disabled]="isDeliveringVote(delegation)"
+                                                        (click)="saveGlobalVote(option.vote, delegation)"
                                                     >
-                                                        <os-custom-icon
-                                                            class="vote-button-cross"
-                                                            [customIcon]="drawnCross"
-                                                            [ngClass]="getGlobalCSSClass(option, delegation)"
-                                                        ></os-custom-icon>
-                                                        <mat-icon class="vote-button-circle">
-                                                            radio_button_unchecked
-                                                        </mat-icon>
-                                                    </div>
-                                                </button>
+                                                        <div
+                                                            class="vote-button-content"
+                                                            [ngClass]="getGlobalButtonContentClass(option, delegation)"
+                                                        >
+                                                            <os-custom-icon
+                                                                class="vote-button-cross"
+                                                                [customIcon]="drawnCross"
+                                                                [ngClass]="getGlobalCSSClass(option, delegation)"
+                                                            ></os-custom-icon>
+                                                            <mat-icon class="vote-button-circle">
+                                                                radio_button_unchecked
+                                                            </mat-icon>
+                                                        </div>
+                                                    </button>
+                                                } @else {
+                                                    <mat-form-field appearance="outline" class="vote-input">
+                                                        <input
+                                                            matInput
+                                                            max="{{ poll.max_votes_per_option }}"
+                                                            min="0"
+                                                            required
+                                                            type="number"
+                                                            value="0"
+                                                        />
+                                                        <mat-error></mat-error>
+                                                    </mat-form-field>
+                                                }
                                             </div>
                                         </div>
                                     }
@@ -186,13 +231,30 @@
                                         settings.isSplitSingleOption && !displayed_in_autopilot && poll.isMethodYNA,
                                     'yn-split-grid':
                                         settings.isSplitSingleOption && !displayed_in_autopilot && poll.isMethodYN,
-                                    'remove-grid-gap': settings.isSplitSingleOption && displayed_in_autopilot,
                                     'yna-grid':
-                                        (!settings.isSplitSingleOption && poll.isMethodYNA) ||
-                                        (settings.isSplitSingleOption && displayed_in_autopilot && poll.isMethodYNA),
+                                        ((!settings.isSplitSingleOption && poll.isMethodYNA) ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYNA)) &&
+                                        poll.max_votes_per_option <= 1,
+                                    'yna-multi-grid':
+                                        ((!settings.isSplitSingleOption && poll.isMethodYNA) ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYNA)) &&
+                                        poll.max_votes_per_option > 1,
                                     'yn-grid':
-                                        (!settings.isSplitSingleOption && poll.isMethodYN) ||
-                                        (settings.isSplitSingleOption && displayed_in_autopilot && poll.isMethodYN),
+                                        ((!settings.isSplitSingleOption && poll.isMethodYN) ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYN)) &&
+                                        poll.max_votes_per_option <= 1,
+                                    'yn-multi-grid':
+                                        ((!settings.isSplitSingleOption && poll.isMethodYN) ||
+                                            (settings.isSplitSingleOption &&
+                                                displayed_in_autopilot &&
+                                                poll.isMethodYN)) &&
+                                        poll.max_votes_per_option > 1,
                                     'single-vote-grid':
                                         !settings.isSplitSingleOption &&
                                         (poll.isMethodY || poll.isMethodN) &&
@@ -200,6 +262,14 @@
                                     'single-multi-vote-grid':
                                         !settings.isSplitSingleOption &&
                                         (poll.isMethodY || poll.isMethodN) &&
+                                        poll.max_votes_per_option > 1,
+                                    'remove-grid-gap':
+                                        settings.isSplitSingleOption &&
+                                        displayed_in_autopilot &&
+                                        (!poll.max_votes_per_option || poll.max_votes_per_option <= 1),
+                                    'remove-multi-grid-gap':
+                                        settings.isSplitSingleOption &&
+                                        displayed_in_autopilot &&
                                         poll.max_votes_per_option > 1,
                                     'accentuated-background': i % 2 === 1
                                 }"
@@ -238,13 +308,13 @@
                                         }
                                     </div>
                                 }
-                                @if (!poll.max_votes_per_option || poll.max_votes_per_option <= 1) {
-                                    @for (
-                                        action of voteActions.length ? voteActions : voteOptions;
-                                        track action.vote;
-                                        let i = $index
-                                    ) {
-                                        <div class="vote-button-area" [ngClass]="'option' + i">
+                                @for (
+                                    action of voteActions.length ? voteActions : voteOptions;
+                                    track action.vote;
+                                    let i = $index
+                                ) {
+                                    <div class="vote-element-area" [ngClass]="'option' + i">
+                                        @if (!poll.max_votes_per_option || poll.max_votes_per_option <= 1) {
                                             <button
                                                 class="vote-button"
                                                 mat-raised-button
@@ -265,13 +335,27 @@
                                                     </mat-icon>
                                                 </div>
                                             </button>
-                                            @if (settings.isSplitSingleOption && !displayed_in_autopilot) {
-                                                <span class="vote-label">
-                                                    {{ action.label | translate }}
-                                                </span>
-                                            }
-                                        </div>
-                                    }
+                                        } @else {
+                                            <mat-form-field appearance="outline" class="vote-input">
+                                                <input
+                                                    matInput
+                                                    max="{{ poll.max_votes_per_option }}"
+                                                    min="0"
+                                                    required
+                                                    type="number"
+                                                    value="0"
+                                                    [formControl]="getFormControl(option.id)"
+                                                    (change)="saveMultipleVotes(option.id, $event, delegation)"
+                                                />
+                                                <mat-error></mat-error>
+                                            </mat-form-field>
+                                        }
+                                        @if (settings.isSplitSingleOption && !displayed_in_autopilot) {
+                                            <span class="vote-label">
+                                                {{ action.label | translate }}
+                                            </span>
+                                        }
+                                    </div>
                                 }
                                 @if (settings.isSplitSingleOption && displayed_in_autopilot) {
                                     <ng-container>
@@ -280,49 +364,36 @@
                                             track action.vote;
                                             let i = $index
                                         ) {
-                                            <div class="vote-button-area" [ngClass]="'option' + i">
-                                                <button
-                                                    class="vote-button"
-                                                    mat-raised-button
-                                                    [disabled]="isDeliveringVote(delegation)"
-                                                    (click)="saveSingleVote(option.id, action.vote, delegation)"
-                                                >
-                                                    <div
-                                                        class="vote-button-content"
-                                                        [ngClass]="
-                                                            getActionButtonContentClass(action, option, delegation)
-                                                        "
+                                            @if (!poll.max_votes_per_option || poll.max_votes_per_option <= 1) {
+                                                <div class="vote-element-area" [ngClass]="'option' + i">
+                                                    <button
+                                                        class="vote-button"
+                                                        mat-raised-button
+                                                        [disabled]="isDeliveringVote(delegation)"
+                                                        (click)="saveSingleVote(option.id, action.vote, delegation)"
                                                     >
-                                                        <os-custom-icon
-                                                            class="vote-button-cross"
-                                                            [customIcon]="drawnCross"
-                                                            [ngClass]="getActionButtonClass(action, option, delegation)"
-                                                        ></os-custom-icon>
-                                                        <mat-icon class="vote-button-circle">
-                                                            radio_button_unchecked
-                                                        </mat-icon>
-                                                    </div>
-                                                </button>
-                                            </div>
+                                                        <div
+                                                            class="vote-button-content"
+                                                            [ngClass]="
+                                                                getActionButtonContentClass(action, option, delegation)
+                                                            "
+                                                        >
+                                                            <os-custom-icon
+                                                                class="vote-button-cross"
+                                                                [customIcon]="drawnCross"
+                                                                [ngClass]="
+                                                                    getActionButtonClass(action, option, delegation)
+                                                                "
+                                                            ></os-custom-icon>
+                                                            <mat-icon class="vote-button-circle">
+                                                                radio_button_unchecked
+                                                            </mat-icon>
+                                                        </div>
+                                                    </button>
+                                                </div>
+                                            }
                                         }
                                     </ng-container>
-                                }
-                                @if (poll.max_votes_per_option > 1) {
-                                    <mat-form-field appearance="outline" class="vote-input">
-                                        <input
-                                            matInput
-                                            max="{{ poll.max_votes_per_option }}"
-                                            min="0"
-                                            required
-                                            type="number"
-                                            value="0"
-                                            [formControl]="getFormControl(option.id)"
-                                            (change)="saveMultipleVotes(option.id, $event, delegation)"
-                                        />
-                                        <mat-error>
-                                            {{ getErrorInVoteEntry(option.id) }}
-                                        </mat-error>
-                                    </mat-form-field>
                                 }
                             </div>
                         }
@@ -347,33 +418,52 @@
                             @if (!settings.hideGlobalOptions) {
                                 @for (option of globalVoteActions; track option.vote) {
                                     @if (!poll.isMethodN || option.vote !== 'Y') {
-                                        <div class="single-vote-grid">
+                                        <div
+                                            [ngClass]="{
+                                                'single-vote-grid': poll.max_votes_per_option <= 1,
+                                                'single-multi-vote-grid': poll.max_votes_per_option > 1
+                                            }"
+                                        >
                                             <div class="vote-option-title">
                                                 <span>
                                                     {{ getGlobalOptionName(option) | translate }}
                                                 </span>
                                             </div>
-                                            <div class="vote-button-area">
-                                                <button
-                                                    class="vote-button"
-                                                    mat-raised-button
-                                                    [disabled]="isDeliveringVote(delegation)"
-                                                    (click)="saveGlobalVote(option.vote, delegation)"
-                                                >
-                                                    <div
-                                                        class="vote-button-content"
-                                                        [ngClass]="getGlobalButtonContentClass(option, delegation)"
+                                            <div class="vote-element-area">
+                                                @if (!poll.max_votes_per_option || poll.max_votes_per_option <= 1) {
+                                                    <button
+                                                        class="vote-button"
+                                                        mat-raised-button
+                                                        [disabled]="isDeliveringVote(delegation)"
+                                                        (click)="saveGlobalVote(option.vote, delegation)"
                                                     >
-                                                        <os-custom-icon
-                                                            class="vote-button-cross"
-                                                            [customIcon]="drawnCross"
-                                                            [ngClass]="getGlobalCSSClass(option, delegation)"
-                                                        ></os-custom-icon>
-                                                        <mat-icon class="vote-button-circle">
-                                                            radio_button_unchecked
-                                                        </mat-icon>
-                                                    </div>
-                                                </button>
+                                                        <div
+                                                            class="vote-button-content"
+                                                            [ngClass]="getGlobalButtonContentClass(option, delegation)"
+                                                        >
+                                                            <os-custom-icon
+                                                                class="vote-button-cross"
+                                                                [customIcon]="drawnCross"
+                                                                [ngClass]="getGlobalCSSClass(option, delegation)"
+                                                            ></os-custom-icon>
+                                                            <mat-icon class="vote-button-circle">
+                                                                radio_button_unchecked
+                                                            </mat-icon>
+                                                        </div>
+                                                    </button>
+                                                } @else {
+                                                    <mat-form-field appearance="outline" class="vote-input">
+                                                        <input
+                                                            matInput
+                                                            max="{{ poll.max_votes_per_option }}"
+                                                            min="0"
+                                                            required
+                                                            type="number"
+                                                            value="0"
+                                                        />
+                                                        <mat-error></mat-error>
+                                                    </mat-form-field>
+                                                }
                                             </div>
                                         </div>
                                     }
